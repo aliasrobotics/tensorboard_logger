@@ -23,7 +23,7 @@ except ImportError:
 from .crc32c import crc32c
 
 
-__all__ = ['Logger', 'configure', 'unconfigure', 'log_value', 'log_histogram', 'log_images']
+__all__ = ['Logger', 'configure', 'unconfigure', 'log_value', 'log_histogram', 'log_images', 'log_greeter2_plugin']
 
 
 _VALID_OP_NAME_START = re.compile('^[A-Za-z0-9.]')
@@ -90,6 +90,51 @@ class Logger(object):
 
         summary = self._scalar_summary(tf_name, value, step)
         self._log_summary(tf_name, summary, value, step=step)
+
+    def log_greeter2_plugin(self, tag, guest, display_name=None, description=None):
+        """Log into the greeter2 plugin.
+
+        Args:
+            tag (string)
+                The string tag associated with the summary.
+
+            text (string)
+                The text used to greet
+
+            display_name (string)
+                If set, will be used as the display name in TensorBoard. Defaults to `tag`.
+
+            description (string)
+                A longform readable description of the summary data. Markdown is supported.
+        """
+        import tensorflow as tf
+        if not isinstance(guest, six.string_types):
+            raise TypeError('"value" should be a string, got {}'
+                            .format(type(value)))
+
+        message = 'Hello, %s!' % guest
+        tensor = tf.make_tensor_proto(message, dtype=tf.string)
+
+        # We have no metadata to store, but we do need to add a plugin_data entry
+        # so that we know this summary is associated with the greeter plugin.
+        # We could use this entry to pass additional metadata other than the
+        # PLUGIN_NAME by using the content parameter.
+        summary_metadata = tf.SummaryMetadata(
+          display_name=display_name,
+          summary_description=description,
+          plugin_data=tf.SummaryMetadata.PluginData(
+              plugin_name='greeter2'))
+
+        summary = tf.Summary()
+        summary.value.add(tag=tag,
+                        metadata=summary_metadata,
+                        tensor=tensor)
+        # return summary
+        event = event_pb2.Event(wall_time=self._time(), summary=summary)
+        if self.is_dummy:
+            self.dummy_log[tag].append((0, value))
+        else:
+            self._write_event(event)
 
     def log_histogram(self, name, value, step=None):
         """Log a histogram for given name on given step.
@@ -322,5 +367,9 @@ def log_histogram(name, value, step=None):
 def log_images(name, images, step=None):
     _check_default_logger()
     _default_logger.log_images(name, images, step=step)
+
+def log_greeter2_plugin(tag, guest, display_name=None, description=None):
+    _check_default_logger()
+    _default_logger.log_greeter2_plugin(tag, guest, display_name, description)
 
 log_value.__doc__ = Logger.log_value.__doc__
