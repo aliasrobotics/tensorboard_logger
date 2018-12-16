@@ -23,7 +23,7 @@ except ImportError:
 from .crc32c import crc32c
 
 
-__all__ = ['Logger', 'configure', 'unconfigure', 'log_value', 'log_histogram', 'log_images', 'log_greeter2_plugin']
+__all__ = ['Logger', 'configure', 'unconfigure', 'log_value', 'log_histogram', 'log_images', 'log_greeter2_plugin', 'log_text']
 
 
 _VALID_OP_NAME_START = re.compile('^[A-Za-z0-9.]')
@@ -91,26 +91,51 @@ class Logger(object):
         summary = self._scalar_summary(tf_name, value, step)
         self._log_summary(tf_name, summary, value, step=step)
 
+    def log_text(self, tag, data, display_name=None, description=None):
+        """Log into the text plugin.
+        Args:
+            TODO
+        """
+        import tensorflow as tf
+        try:
+          # tensor = tf.compat.v1.make_tensor_proto(data, dtype=tf.string)
+          tensor = tf.make_tensor_proto(data, dtype=tf.string)
+        except TypeError as e:
+          raise ValueError(e)
+
+        if display_name is None:
+          display_name = tag
+
+        metadata = tf.SummaryMetadata(
+          display_name=display_name,
+          summary_description=description,
+          plugin_data=tf.SummaryMetadata.PluginData(
+              plugin_name='text'))
+
+        tf_summary_metadata = tf.SummaryMetadata.FromString(
+            metadata.SerializeToString())
+        summary = tf.Summary()
+        summary.value.add(tag='%s/text_summary' % tag,
+                          metadata=tf_summary_metadata,
+                          tensor=tensor)
+
+        event = event_pb2.Event(wall_time=self._time(), summary=summary)
+        if self.is_dummy:
+            self.dummy_log[tag].append((0, data))
+        else:
+            self._write_event(event)
+
+
     def log_greeter2_plugin(self, tag, guest, display_name=None, description=None):
         """Log into the greeter2 plugin.
 
         Args:
-            tag (string)
-                The string tag associated with the summary.
-
-            text (string)
-                The text used to greet
-
-            display_name (string)
-                If set, will be used as the display name in TensorBoard. Defaults to `tag`.
-
-            description (string)
-                A longform readable description of the summary data. Markdown is supported.
+            TODO
         """
         import tensorflow as tf
         if not isinstance(guest, six.string_types):
             raise TypeError('"value" should be a string, got {}'
-                            .format(type(value)))
+                            .format(type(guest)))
 
         message = 'Hello, %s!' % guest
         tensor = tf.make_tensor_proto(message, dtype=tf.string)
@@ -371,5 +396,9 @@ def log_images(name, images, step=None):
 def log_greeter2_plugin(tag, guest, display_name=None, description=None):
     _check_default_logger()
     _default_logger.log_greeter2_plugin(tag, guest, display_name, description)
+
+def log_text(tag, data, display_name=None, description=None):
+    _check_default_logger()
+    _default_logger.log_text(tag, data, display_name, description)
 
 log_value.__doc__ = Logger.log_value.__doc__
