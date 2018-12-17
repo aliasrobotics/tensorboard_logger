@@ -10,10 +10,11 @@ import numpy as np
 import six
 
 import scipy.misc
+
 try:
     from StringIO import StringIO  # Python 2.7
 except ImportError:
-    from io import BytesIO         # Python 3.x
+    from io import BytesIO  # Python 3.x
 
 try:
     from tensorflow.core.util import event_pb2
@@ -22,9 +23,8 @@ except ImportError:
     from .tf_protobuf import summary_pb2, event_pb2
 from .crc32c import crc32c
 
-
-__all__ = ['Logger', 'configure', 'unconfigure', 'log_value', 'log_histogram', 'log_images', 'log_greeter2_plugin', 'log_text']
-
+__all__ = ['Logger', 'configure', 'unconfigure', 'log_value', 'log_histogram',
+           'log_images', 'log_greeter2_plugin', 'log_text']
 
 _VALID_OP_NAME_START = re.compile('^[A-Za-z0-9.]')
 _VALID_OP_NAME_PART = re.compile('[A-Za-z0-9_.\\-/]+')
@@ -93,24 +93,30 @@ class Logger(object):
 
     def log_text(self, tag, data, display_name=None, description=None):
         """Log into the text plugin.
+
         Args:
-            TODO
+            tag: The string tag associated with the summary.
+            data: The string with the text to be logged.
+            display_name: If set, will be used as the display name in
+                TensorBoard. Defaults to `tag`.
+            description: A longform readable description of the summary data.
+                Markdown is supported.
         """
         import tensorflow as tf
         try:
-          # tensor = tf.compat.v1.make_tensor_proto(data, dtype=tf.string)
-          tensor = tf.make_tensor_proto(data, dtype=tf.string)
+            # tensor = tf.compat.v1.make_tensor_proto(data, dtype=tf.string)
+            tensor = tf.make_tensor_proto(data, dtype=tf.string)
         except TypeError as e:
-          raise ValueError(e)
+            raise ValueError(e)
 
         if display_name is None:
-          display_name = tag
+            display_name = tag
 
         metadata = tf.SummaryMetadata(
-          display_name=display_name,
-          summary_description=description,
-          plugin_data=tf.SummaryMetadata.PluginData(
-              plugin_name='text'))
+            display_name=display_name,
+            summary_description=description,
+            plugin_data=tf.SummaryMetadata.PluginData(
+                plugin_name='text'))
 
         tf_summary_metadata = tf.SummaryMetadata.FromString(
             metadata.SerializeToString())
@@ -125,12 +131,17 @@ class Logger(object):
         else:
             self._write_event(event)
 
-
-    def log_greeter2_plugin(self, tag, guest, display_name=None, description=None):
+    def log_greeter2_plugin(self, tag, guest, display_name=None,
+                            description=None):
         """Log into the greeter2 plugin.
 
         Args:
-            TODO
+            tag: The string tag associated with the summary.
+            guest: The string name of the guest to greet.
+            display_name: If set, will be used as the display name in
+                TensorBoard. Defaults to `tag`.
+            description: A longform readable description of the summary data.
+                Markdown is supported.
         """
         import tensorflow as tf
         if not isinstance(guest, six.string_types):
@@ -145,15 +156,15 @@ class Logger(object):
         # We could use this entry to pass additional metadata other than the
         # PLUGIN_NAME by using the content parameter.
         summary_metadata = tf.SummaryMetadata(
-          display_name=display_name,
-          summary_description=description,
-          plugin_data=tf.SummaryMetadata.PluginData(
-              plugin_name='greeter2'))
+            display_name=display_name,
+            summary_description=description,
+            plugin_data=tf.SummaryMetadata.PluginData(
+                plugin_name='greeter2'))
 
         summary = tf.Summary()
         summary.value.add(tag=tag,
-                        metadata=summary_metadata,
-                        tensor=tensor)
+                          metadata=summary_metadata,
+                          tensor=tensor)
         # return summary
         event = event_pb2.Event(wall_time=self._time(), summary=summary)
         if self.is_dummy:
@@ -233,8 +244,9 @@ class Logger(object):
                 width=img.shape[1]
             )
             # Create a Summary value
-            img_value = summary_pb2.Summary.Value(tag='{}/{}'.format(tf_name, i),
-                                                  image=img_sum)
+            img_value = summary_pb2.Summary.Value(
+                tag='{}/{}'.format(tf_name, i),
+                image=img_sum)
             img_summaries.append(img_value)
             summary = summary_pb2.Summary()
             summary.value.add(tag=tf_name, image=img_sum)
@@ -283,7 +295,7 @@ class Logger(object):
             hist.max = float(np.max(values))
             hist.num = int(np.prod(values.shape))
             hist.sum = float(np.sum(values))
-            hist.sum_squares = float(np.sum(values**2))
+            hist.sum_squares = float(np.sum(values ** 2))
 
         # Add bin edges and counts
         for edge in bin_edges[1:]:
@@ -365,11 +377,13 @@ def configure(logdir, flush_secs=2):
         raise ValueError('default logger already configured')
     _default_logger = Logger(logdir, flush_secs=flush_secs)
 
+
 def unconfigure():
     """ UnConfigure logging
     """
     global _default_logger
     _default_logger = None  # type: Logger
+
 
 def _check_default_logger():
     if _default_logger is None:
@@ -393,12 +407,15 @@ def log_images(name, images, step=None):
     _check_default_logger()
     _default_logger.log_images(name, images, step=step)
 
+
 def log_greeter2_plugin(tag, guest, display_name=None, description=None):
     _check_default_logger()
     _default_logger.log_greeter2_plugin(tag, guest, display_name, description)
 
+
 def log_text(tag, data, display_name=None, description=None):
     _check_default_logger()
     _default_logger.log_text(tag, data, display_name, description)
+
 
 log_value.__doc__ = Logger.log_value.__doc__
